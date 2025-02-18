@@ -4,34 +4,45 @@
 // SHIFT DEFINITIONS & HOURS
 // -------------------------------
 
-// For standard days (Mon, Tue, Wed, Thu, Sun):
+// Standard day shifts
 const standardShifts = {
-  morning: "8:00 AM - 5:00 PM",      // 9 hours
-  evening: "5:00 PM - 11:00 PM",       // 6 hours
-  full: "11:00 AM - 11:30 PM",         // 12.5 hours
-  combined: "8:00 AM - 11:00 PM"       // 15 hours (if only one chef available)
+  morning: "8:00 AM - 5:00 PM",      // (Not used in 2-chef scenario)
+  evening: "5:00 PM - 11:00 PM",       // (Not used in 2-chef scenario)
+  full: "11:00 AM - 11:00 PM",         // 12 hours
+  combined: "8:00 AM - 11:00 PM"       // 15 hours
 };
 
 const standardShiftHours = {
-  "8:00 AM - 5:00 PM": 9,
-  "5:00 PM - 11:00 PM": 6,
-  "11:00 AM - 11:30 PM": 12.5,
-  "8:00 AM - 11:00 PM": 15
+  "8:00 AM - 11:00 PM": 15,
+  "11:00 AM - 11:00 PM": 12
 };
 
-// For Fridays and Saturdays:
+// Weekend (Friday & Saturday) shifts
 const weekendShifts = {
-  morning: "8:00 AM - 5:00 PM",      // 9 hours (unchanged)
-  evening: "5:00 PM - 2:00 AM",        // 9 hours (5PM to midnight = 7h, midnight to 2AM = 2h)
-  full: "11:00 AM - 2:00 AM",          // 15 hours
-  combined: "8:00 AM - 2:00 AM"        // 18 hours (if only one chef available)
+  morning: "8:00 AM - 5:00 PM",        // (Not used in 2-chef scenario)
+  evening: "5:00 PM - 2:00 AM",          // 9 hours
+  full: "11:00 AM - 2:00 AM",            // 15 hours
+  combined: "8:00 AM - 2:00 AM"          // 18 hours
 };
 
 const weekendShiftHours = {
+  "8:00 AM - 2:00 AM": 18,
+  "11:00 AM - 2:00 AM": 15
+};
+
+// For other shifts (when 3 chefs are available, etc.), we still use these defaults:
+const shiftOptions = {
+  halfEarly: "8:00 AM - 5:00 PM",   // 9 hours (used for 3-chef assignment)
+  halfLate: "5:00 PM - 11:00 PM",    // 6 hours (used for 3-chef assignment)
+  full: standardShifts.full,        // "11:00 AM - 11:00 PM"
+  long: standardShifts.combined     // "8:00 AM - 11:00 PM" for standard days (if needed)
+};
+
+const shiftHours = {
   "8:00 AM - 5:00 PM": 9,
-  "5:00 PM - 2:00 AM": 9,
-  "11:00 AM - 2:00 AM": 15,
-  "8:00 AM - 2:00 AM": 18
+  "5:00 PM - 11:00 PM": 6,
+  "11:00 AM - 11:00 PM": 12.5,
+  "8:00 AM - 11:00 PM": 15
 };
 
 const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -43,10 +54,9 @@ let chefs = []; // Array to hold chef objects
 let rota = {};  // Object to hold the schedule (rota)
 
 // ----------------------------------------------------
-// TIME PARSING & FORMAT FUNCTIONS (12-Hour)
+// TIME PARSING & 12-HOUR FORMAT FUNCTIONS
 // ----------------------------------------------------
 function parseTime(timeString) {
-  // Expects time in format "HH:MM" (24-hour style for calculation)
   let parts = timeString.split(":");
   if (parts.length !== 2) return null;
   let hours = parseInt(parts[0], 10);
@@ -60,18 +70,13 @@ function calculateDuration(startTime, endTime) {
   let end = parseTime(endTime);
   if (start === null || end === null) return 0;
   let diff = end - start;
-  if (diff < 0) diff += 24 * 60; // cross midnight
+  if (diff < 0) diff += 24 * 60;
   return diff / 60;
 }
 
-/**
- * parseTime12("8 AM") or "08:00 AM" => returns total minutes from midnight.
- */
 function parseTime12(timeStr) {
   let [hhmm, meridiem] = timeStr.trim().split(" ");
-  if (!hhmm.includes(":")) {
-    hhmm = hhmm + ":00";
-  }
+  if (!hhmm.includes(":")) { hhmm = hhmm + ":00"; }
   let [hh, mm] = hhmm.split(":");
   let hours = parseInt(hh, 10);
   let minutes = parseInt(mm, 10);
@@ -93,14 +98,8 @@ function formatTime12(totalMinutes) {
   return `${hours12}:${mmStr} ${meridiem}`;
 }
 
-/**
- * unifyShiftFormat("08:00 AM - 2:00 PM") => "8:00 AM - 2:00 PM"
- * Ensures consistent display for any shift string.
- */
 function unifyShiftFormat(shiftString) {
-  if (!shiftString || shiftString.toLowerCase() === "off") {
-    return "Off";
-  }
+  if (!shiftString || shiftString.toLowerCase() === "off") return "Off";
   let parts = shiftString.split("-");
   if (parts.length !== 2) return shiftString;
   let startStr = parts[0].trim();
@@ -114,23 +113,24 @@ function unifyShiftFormat(shiftString) {
 }
 
 // ----------------------------------------------------
-// HELPER FUNCTION: mergeShifts (unchanged)
+// HELPER FUNCTION: mergeShifts (unchanged except for using new shift strings)
 // ----------------------------------------------------
 function mergeShifts(shift1, shift2) {
+  // For standard days, if one shift is morning and the other evening, merge to combined.
   if (
     (shift1 === standardShifts.morning && shift2 === standardShifts.evening) ||
     (shift1 === standardShifts.evening && shift2 === standardShifts.morning)
   ) {
-    // For standard days, merging morning and evening would give a combined shift (8:00 AM - 11:00 PM)
     return standardShifts.combined;
   }
+  // For weekend days, similarly:
   if (
     (shift1 === weekendShifts.morning && shift2 === weekendShifts.evening) ||
     (shift1 === weekendShifts.evening && shift2 === weekendShifts.morning)
   ) {
     return weekendShifts.combined;
   }
-  // Merging a full shift with a half shift (morning or evening) always results in the long shift.
+  // Merging full and half:
   if (
     (shift1 === standardShifts.full && (shift2 === standardShifts.morning || shift2 === standardShifts.evening)) ||
     ((shift1 === standardShifts.morning || shift1 === standardShifts.evening) && shift2 === standardShifts.full)
@@ -150,7 +150,7 @@ function mergeShifts(shift1, shift2) {
   if (shift1 === weekendShifts.full && shift2 === weekendShifts.full) {
     return weekendShifts.combined;
   }
-  // If either is already the combined shift, result is combined.
+  // If either is already combined, result is combined.
   if (shift1 === standardShifts.combined || shift2 === standardShifts.combined) {
     return standardShifts.combined;
   }
@@ -188,9 +188,9 @@ function createModal(contentHTML) {
   return modal;
 }
 
-// -------------------------------
+// ----------------------------------------------------
 // MODAL: EDIT OPTIONS (Replace, Edit Times, Delete, Cancel)
-// -------------------------------
+// ----------------------------------------------------
 function openEditOptionsModal(day, currentChef, currentShift, cell) {
   const modalHTML = `
     <h2>Modify Shift for ${day} (${currentChef} - ${currentShift})</h2>
@@ -251,9 +251,9 @@ function openEditOptionsModal(day, currentChef, currentShift, cell) {
   });
 }
 
-// -------------------------------
+// ----------------------------------------------------
 // MODAL: TIME EDIT (for editing shift times)
-// -------------------------------
+// ----------------------------------------------------
 function openTimeEditModal(day, currentChef, currentShift, cell) {
   let titleText = currentShift ?
       `Edit Shift Times for ${currentChef} on ${day}` :
@@ -366,7 +366,6 @@ function recalcWeeklyHours() {
     if (rota[day]) {
       rota[day].forEach(assignment => {
         let hours = assignment.duration ? assignment.duration : (function() {
-          // Determine shift hours based on day type.
           let shifts = (day === "Friday" || day === "Saturday") ? weekendShiftHours : standardShiftHours;
           return shifts[assignment.shift] || 0;
         })();
@@ -390,33 +389,12 @@ function updateWeeklyHoursDisplay() {
 }
 
 // -------------------------------
-// FUNCTIONS TO GET SHIFT SET BASED ON DAY
-// -------------------------------
-function getShiftsForDay(day) {
-  if (day === "Friday" || day === "Saturday") {
-    return weekendShifts;
-  } else {
-    return standardShifts;
-  }
-}
-
-function getShiftHoursForDay(day) {
-  if (day === "Friday" || day === "Saturday") {
-    return weekendShiftHours;
-  } else {
-    return standardShiftHours;
-  }
-}
-
-// -------------------------------
 // ROTA GENERATION & DISPLAY FUNCTIONS
 // -------------------------------
 function generateRota() {
   console.log("Generating Rota...");
   chefs = [];
   rota = {};
-
-  // For each of the 3 fixed chef inputs:
   for (let i = 0; i < 3; i++) {
     let name = document.getElementById(`chef-name-${i}`).value.trim();
     let dayOffSelect = document.getElementById(`day-off-${i}`);
@@ -434,56 +412,62 @@ function generateRota() {
     return;
   }
   console.log("Chefs List:", chefs);
-
-  // Initialize rota for each day.
   days.forEach(day => { rota[day] = []; });
-
-  // For each day, assign shifts based on availability.
   days.forEach(day => {
     let availableChefs = chefs.filter(c => !c.daysOff.includes(day));
-    let shifts = getShiftsForDay(day);
-    let hoursObj = getShiftHoursForDay(day);
-
+    let shifts, hoursObj;
+    if (day === "Friday" || day === "Saturday") {
+      shifts = weekendShifts;
+      hoursObj = weekendShiftHours;
+    } else {
+      shifts = standardShifts;
+      hoursObj = standardShiftHours;
+    }
     if (availableChefs.length === 3) {
       availableChefs.sort((a, b) => a.weeklyHours - b.weeklyHours);
-      // Assign the chef with the fewest hours the "full" shift.
+      // When all 3 chefs are available, assign:
+      // - Full shift: standardShifts.full ("11:00 AM - 11:00 PM") on standard days,
+      //   or weekendShifts.full ("11:00 AM - 2:00 AM") on Friday/Saturday.
       let chefFull = availableChefs[0];
       chefFull.weeklyHours += hoursObj[shifts.full];
       rota[day].push({ name: chefFull.name, shift: shifts.full });
-      // Next gets morning shift.
+      // - Morning shift on standard days or morning shift on weekend remains same:
+      //   For standard days: "8:00 AM - 5:00 PM"
+      //   For weekends, we could use "8:00 AM - 5:00 PM" as well (if needed) but here we'll assume 3-chef scenario uses default shifts.
       let chefMorning = availableChefs[1];
-      chefMorning.weeklyHours += hoursObj[shifts.morning];
-      rota[day].push({ name: chefMorning.name, shift: shifts.morning });
-      // Last gets evening shift.
+      chefMorning.weeklyHours += shiftHours[shiftOptions.halfEarly]; // Using previously defined halfEarly for display
+      rota[day].push({ name: chefMorning.name, shift: shiftOptions.halfEarly });
       let chefEvening = availableChefs[2];
-      chefEvening.weeklyHours += hoursObj[shifts.evening];
-      rota[day].push({ name: chefEvening.name, shift: shifts.evening });
+      chefEvening.weeklyHours += shiftHours[shiftOptions.halfLate];
+      rota[day].push({ name: chefEvening.name, shift: shiftOptions.halfLate });
     } else if (availableChefs.length === 2) {
       availableChefs.sort((a, b) => a.weeklyHours - b.weeklyHours);
-      // For standard days, assign morning and evening shifts.
-      // For weekend days, assign evening and full shifts.
       if (day === "Friday" || day === "Saturday") {
-        let chefEvening = availableChefs[0];
-        chefEvening.weeklyHours += hoursObj[shifts.evening];
-        rota[day].push({ name: chefEvening.name, shift: shifts.evening });
+        // For Fridays and Saturdays:
+        // - Combined shift: "8:00 AM - 2:00 AM" (18 hours)
+        let chefCombined = availableChefs[0];
+        chefCombined.weeklyHours += hoursObj["8:00 AM - 2:00 AM"];
+        rota[day].push({ name: chefCombined.name, shift: "8:00 AM - 2:00 AM" });
+        // - Full shift: "11:00 AM - 2:00 AM" (15 hours)
         let chefFull = availableChefs[1];
-        chefFull.weeklyHours += hoursObj[shifts.full];
-        rota[day].push({ name: chefFull.name, shift: shifts.full });
+        chefFull.weeklyHours += hoursObj["11:00 AM - 2:00 AM"];
+        rota[day].push({ name: chefFull.name, shift: "11:00 AM - 2:00 AM" });
       } else {
-        let chefMorning = availableChefs[0];
-        chefMorning.weeklyHours += hoursObj[shifts.morning];
-        rota[day].push({ name: chefMorning.name, shift: shifts.morning });
-        let chefEvening = availableChefs[1];
-        chefEvening.weeklyHours += hoursObj[shifts.evening];
-        rota[day].push({ name: chefEvening.name, shift: shifts.evening });
+        // For standard days:
+        // - Combined shift: "8:00 AM - 11:00 PM" (15 hours)
+        let chefCombined = availableChefs[0];
+        chefCombined.weeklyHours += hoursObj["8:00 AM - 11:00 PM"];
+        rota[day].push({ name: chefCombined.name, shift: "8:00 AM - 11:00 PM" });
+        // - Full shift: "11:00 AM - 11:00 PM" (12 hours)
+        let chefFull = availableChefs[1];
+        chefFull.weeklyHours += hoursObj["11:00 AM - 11:00 PM"];
+        rota[day].push({ name: chefFull.name, shift: "11:00 AM - 11:00 PM" });
       }
     } else if (availableChefs.length === 1) {
-      // If only one chef is available, assign the combined shift.
       let chefOnly = availableChefs[0];
       chefOnly.weeklyHours += hoursObj[shifts.combined];
       rota[day].push({ name: chefOnly.name, shift: shifts.combined });
     }
-    // If no chef is available, leave it Off.
   });
   console.log("Generated Rota:", rota);
   displayRota();
