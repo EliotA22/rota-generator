@@ -3,23 +3,24 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Restaurant Rota Generator</title>
+  <title>Mayyil Rota Generator</title>
   <link rel="stylesheet" href="style.css" />
   <!-- Include jsPDF and html2canvas from CDN -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
 </head>
 <body>
-  <h1>Restaurant Rota Generator</h1>
+  <h1>Mayyil Rota Generator</h1>
 
   <div id="input-section">
     <h2>Enter 3 Chefs and Select Their Days Off</h2>
+    <p>Select one or more days off (hold Ctrl/Cmd to select multiple).</p>
     <div id="chef-inputs">
       <!-- Chef 1 -->
       <div>
         <input type="text" id="chef-name-0" placeholder="Chef #1">
-        <label for="day-off-0">Day Off:</label>
-        <select id="day-off-0">
+        <label for="day-off-0">Days Off:</label>
+        <select id="day-off-0" multiple>
           <option value="Monday">Monday</option>
           <option value="Tuesday">Tuesday</option>
           <option value="Wednesday">Wednesday</option>
@@ -33,8 +34,8 @@
       <!-- Chef 2 -->
       <div>
         <input type="text" id="chef-name-1" placeholder="Chef #2">
-        <label for="day-off-1">Day Off:</label>
-        <select id="day-off-1">
+        <label for="day-off-1">Days Off:</label>
+        <select id="day-off-1" multiple>
           <option value="Monday">Monday</option>
           <option value="Tuesday">Tuesday</option>
           <option value="Wednesday">Wednesday</option>
@@ -48,8 +49,8 @@
       <!-- Chef 3 -->
       <div>
         <input type="text" id="chef-name-2" placeholder="Chef #3">
-        <label for="day-off-2">Day Off:</label>
-        <select id="day-off-2">
+        <label for="day-off-2">Days Off:</label>
+        <select id="day-off-2" multiple>
           <option value="Monday">Monday</option>
           <option value="Tuesday">Tuesday</option>
           <option value="Wednesday">Wednesday</option>
@@ -87,6 +88,9 @@
     <!-- Only the PDF download button remains -->
     <button onclick="downloadRotaPDF()">Download Rota as PDF</button>
   </div>
+
+  <!-- Weekly Hours Summary -->
+  <div id="weekly-hours"></div>
 
   <script src="script.js"></script>
 </body>
