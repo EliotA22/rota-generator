@@ -508,3 +508,28 @@ function downloadRotaPDF() {
     pdf.save("rota.pdf");
   });
 }
+
+function addRow() {
+  // Get the table body element
+  const tableBody = document.querySelector("#rota-table tbody");
+
+  // Get the number of columns from the header (assumes header exists)
+  const headerCells = document.querySelectorAll("#rota-table thead th");
+  const numColumns = headerCells.length;
+
+  // Create a new table row
+  const newRow = document.createElement("tr");
+
+  // Loop to create cells
+  for (let i = 0; i < numColumns; i++) {
+    const newCell = document.createElement("td");
+    newCell.contentEditable = true;  // Make cell editable
+    newCell.style.border = "1px solid #ddd"; // Optional: style the cell
+    newCell.style.padding = "8px";
+    newCell.innerText = ""; // You can put default text here if you wish
+    newRow.appendChild(newCell);
+  }
+
+  // Append the new row to the table body
+  tableBody.appendChild(newRow);
+}
